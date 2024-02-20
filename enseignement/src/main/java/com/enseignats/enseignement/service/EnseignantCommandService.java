@@ -7,41 +7,64 @@ import com.enseignats.enseignement.repository.EnseignantRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-
+import org.springframework.transaction.annotation.Transactional;
 @Service
 public class EnseignantCommandService {
     @Autowired
-     private EnseignantRepo repo;
+    private EnseignantRepo repo;
+
     @Autowired
-    private KafkaTemplate<String,Object> kafkaTemplate;
+    private KafkaTemplate<String, EnsEvent> kafkaTemplate;
 
-
-    public Enseignant createEns(EnsEvent ens)
-    {
-        Enseignant enseign= repo.save(ens.getEns());
-        EnsEvent event=new EnsEvent("createEnseignant",enseign);
-        kafkaTemplate.send("enseignant-event-topic",event);
-        return enseign;
+    @Transactional
+    public Enseignant createEns(EnsEvent ens) {
+        try {
+            Enseignant enseignant = ens.getEns();
+            Enseignant savedEnseignant = repo.save(enseignant);
+            publishCreateEvent(savedEnseignant);
+            System.out.println("EnsEvent sent successfully to Kafka topic.");
+            return savedEnseignant;
+        } catch (Exception e) {
+            // Handle the exception, log it, and optionally rethrow it if needed
+            // You may also consider throwing a more specific exception type based on your requirements
+            throw new RuntimeException("Error occurred while creating Enseignant", e);
+        }
     }
 
-    public Enseignant UpdateEns(Long id,EnsEvent ens)
-    {
-        Enseignant existEns= repo.findById(id).get();
-        Enseignant newEns=ens.getEns();
-        existEns.setFirstname(newEns.getFirstname());
-        existEns.setLastname(newEns.getLastname());
-        existEns.setAge(newEns.getAge());
-        Enseignant enseign=repo.save(existEns);
-        EnsEvent event=new EnsEvent("update enseignant",enseign);
-        kafkaTemplate.send("enseignant-event-topic",event);
-        return enseign;
-
+    public Enseignant updateEns(Long id, EnsEvent ens) {
+        Enseignant existEns = repo.findById(id).orElse(null);
+        if (existEns != null) {
+            Enseignant newEns = ens.getEns();
+            existEns.setFirstname(newEns.getFirstname());
+            existEns.setLastname(newEns.getLastname());
+            existEns.setAge(newEns.getAge());
+            Enseignant updatedEns = repo.save(existEns);
+            publishUpdateEvent(updatedEns);
+            return updatedEns;
+        } else {
+            // Handle the case where the entity with the given ID is not found.
+            return null;
+        }
     }
 
-    public void delete(Long id){
-         repo.deleteById(id);
-        String deleteEventMessage = "deleteEnseignant:" + id;
-        kafkaTemplate.send("enseignant-event-topic", deleteEventMessage);
+//    public void delete(Long id) {
+//        repo.deleteById(id);
+//        publishDeleteEvent(id);
+//    }
+
+    private void publishCreateEvent(Enseignant enseignant) {
+        EnsEvent event = new EnsEvent("createEnseignant", enseignant);
+        kafkaTemplate.send("enseignant-event-topic", event);
     }
 
+    private void publishUpdateEvent(Enseignant enseignant) {
+        EnsEvent event = new EnsEvent("updateEnseignant", enseignant);
+        kafkaTemplate.send("enseignant-event-topic", event);
+    }
+
+//    private void publishDeleteEvent(Long id) {
+//        String deleteEventMessage = "deleteEnseignant:" + id;
+//        kafkaTemplate.send("enseignant-event-topic", deleteEventMessage);
+//    }
 }
+

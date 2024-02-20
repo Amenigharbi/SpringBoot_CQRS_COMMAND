@@ -1,14 +1,15 @@
 package com.enseignats.enseignement.entity;
 
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
+
+import jakarta.persistence.*;
+import lombok.*;
+
+
+
+@Getter
+@Setter
 @Entity
 @Table(name="Enseignant_command")
 @Data
@@ -18,8 +19,13 @@ public class Enseignant {
     @Id
     @GeneratedValue
     private long id;
-    private String firstname;
-    private String lastname;
-    private Integer age;
 
+    @Column(name = "prenom")  // Specify the custom column name for firstname
+    private String firstname;
+
+    @Column(name = "nom")     // Specify the custom column name for lastname
+    private String lastname;
+
+    @Column(name = "age_personnel")  // Specify the custom column name for age
+    private Integer age;
 }
